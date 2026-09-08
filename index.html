@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="description" content="Gandhify — revolutionary new technology that turns any image into Mahatma Gandhi." />
+    <meta name="theme-color" content="#efe7d3" />
+    <title>Gandhify — turn any image into Mahatma Gandhi</title>
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23efe7d3'/%3E%3Ctext x='32' y='45' font-family='Georgia,serif' font-size='40' font-weight='bold' text-anchor='middle' fill='%23211d15'%3EG%3C/text%3E%3C/svg%3E" />
+  </head>
+  <body>
+    <main>
+      <header>
+        <div class="brand">
+          <h1>Gandhify</h1>
+          <p class="tagline">turns any image into Mahatma Gandhi</p>
+        </div>
+      </header>
+
+      <div id="app-error" class="app-error" hidden></div>
+
+      <!-- pick a photo -->
+      <section id="stage">
+        <div id="dropzone" class="dropzone" tabindex="0" role="button" aria-label="Choose a photo">
+          <input type="file" id="file" accept="image/*" hidden />
+          <div class="dropzone-inner">
+            <svg class="dz-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M12 16V4" />
+              <path d="m7 9 5-5 5 5" />
+              <path d="M4 16.5V18a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-1.5" />
+            </svg>
+            <p class="dz-title">Drop a photo here</p>
+            <p class="dz-hint">or click to browse. a face works best — your eyes will become Gandhi's.</p>
+          </div>
+        </div>
+        <div id="previewBox" class="preview-box" hidden>
+          <img id="sourcePreview" alt="your photo" />
+          <button id="changePhoto" class="ghost" type="button">change photo</button>
+        </div>
+      </section>
+
+      <!-- controls -->
+      <section id="controls" class="controls" hidden>
+        <label class="field">
+          <span class="field-label">resolution</span>
+          <select id="resolution">
+            <option value="96" selected>96 · quick</option>
+            <option value="128">128 · detailed</option>
+          </select>
+        </label>
+        <label class="field field-range">
+          <span class="field-label">subtlety <output id="subtletyOut">6</output></span>
+          <input type="range" id="subtlety" min="0" max="40" step="1" value="6" />
+        </label>
+        <button id="go" class="primary" type="button">Gandhify</button>
+      </section>
+
+      <!-- running -->
+      <section id="progressBox" class="progress-box" hidden>
+        <div class="progress-top">
+          <span id="progressLabel">preparing…</span>
+          <span id="progressPct">0%</span>
+        </div>
+        <div class="bar"><div id="barFill"></div></div>
+        <canvas id="morph" class="morph" width="96" height="96"></canvas>
+        <button id="cancel" class="ghost" type="button">cancel</button>
+      </section>
+
+      <!-- result -->
+      <section id="result" class="result" hidden>
+        <canvas id="resultCanvas" class="morph result" width="96" height="96"></canvas>
+        <div class="result-actions">
+          <button id="downloadPng" class="primary" type="button">download PNG</button>
+          <button id="downloadGif" class="primary" type="button">download GIF</button>
+          <button id="share" class="primary" type="button" hidden>share</button>
+        </div>
+        <div class="anim-controls">
+          <span class="anim-label">morph film</span>
+          <button id="playAnim" class="ghost" type="button">play animation</button>
+          <button id="reverseAnim" class="ghost" type="button" aria-pressed="false">reverse</button>
+        </div>
+        <button id="again" class="ghost" type="button">gandhify another</button>
+        <p id="stats" class="stats"></p>
+      </section>
+
+      <footer>
+        <p>a humble homage to <a href="https://github.com/Spu7Nix/obamify" target="_blank" rel="noopener noreferrer">obamify</a> (MIT).
+        all processing happens in your browser — nothing is uploaded.</p>
+      </footer>
+    </main>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

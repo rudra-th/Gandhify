@@ -1,0 +1,19 @@
+{
+  "frame_side": 1206,
+  "x0": 837,
+  "y0": 72,
+  "target": 256,
+  "face": [
+    60,
+    56,
+    128,
+    128
+  ],
+  "eye_y": 97,
+  "eye_mid_x": 128,
+  "eye_half_span": 32,
+  "face_center": [
+    123,
+    120
+  ]
+}

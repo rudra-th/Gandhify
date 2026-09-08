@@ -1,0 +1,9 @@
+node_modules
+dist
+*.local
+.DS_Store
+scripts/out
+test-images/out
+scripts/cache
+__pycache__/
+*.pyc
