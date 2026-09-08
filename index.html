@@ -42,36 +42,6 @@
                 <span>install app</span>
               </button>
             </div>
-            <div class="menu-section settings">
-              <p class="menu-title">settings</p>
-              <label class="menu-field">
-                <span>resolution</span>
-                <select id="resolution">
-                  <option value="96" selected>96 · quick</option>
-                  <option value="128">128 · detailed</option>
-                </select>
-              </label>
-              <label class="menu-field menu-slider">
-                <span>subtlety <output id="subtletyOut">6</output></span>
-                <input type="range" id="subtlety" min="0" max="40" step="1" value="6" />
-              </label>
-            </div>
-            <div class="menu-section">
-              <a
-                class="menu-item"
-                href="https://github.com/Spu7Nix/obamify"
-                target="_blank"
-                rel="noopener noreferrer"
-                role="menuitem"
-              >
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                  <path d="M9 12h6" />
-                  <path d="m13 8 4 4-4 4" />
-                  <path d="M4 18V6a2 2 0 0 1 2-2h6" />
-                </svg>
-                <span>based on obamify</span>
-              </a>
-            </div>
           </div>
         </div>
       </div>
@@ -103,8 +73,14 @@
 
       <!-- controls -->
       <section id="controls" class="controls" hidden>
+        <label class="field">
+          <span class="field-label">resolution</span>
+          <select id="resolution">
+            <option value="96" selected>96 · quick</option>
+            <option value="128">128 · detailed</option>
+          </select>
+        </label>
         <button id="go" class="primary" type="button">Gandhify</button>
-        <p class="controls-hint">resolution &amp; subtlety live in the ⋯ menu</p>
       </section>
 
       <!-- running -->

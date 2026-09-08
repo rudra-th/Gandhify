@@ -86,8 +86,11 @@ function encodeGif(
   return gif.bytes()
 }
 
-/** how many in-between frames to synthesize per generation of swaps */
-const SMOOTH_STEPS = 3
+/** how many in-between frames to synthesize per generation of swaps.
+ *  12 small batches per generation keeps most pixels still at any instant,
+ *  so the morph creeps into place organically (obamify-style) instead of
+ *  churning the whole image at once. */
+const SMOOTH_STEPS = 12
 
 ctx.onmessage = (event: MessageEvent<JobRequest>) => {
   const req = event.data

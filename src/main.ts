@@ -4,6 +4,7 @@ import weightsUrl from './assets/weights.png'
 import { squareCropResizeToRgba } from './imageutil'
 import type { ImageDataLike } from './imageutil'
 import type { GifOptions } from './worker'
+import { makeFilmClock, type FilmClock } from './filmplayback'
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T
 
@@ -14,8 +15,6 @@ const sourcePreview = $<HTMLImageElement>('sourcePreview')
 const changePhoto = $<HTMLButtonElement>('changePhoto')
 const controls = $<HTMLElement>('controls')
 const resolutionSel = $<HTMLSelectElement>('resolution')
-const subtlety = $<HTMLInputElement>('subtlety')
-const subtletyOut = $<HTMLOutputElement>('subtletyOut')
 const goBtn = $<HTMLButtonElement>('go')
 const progressBox = $<HTMLElement>('progressBox')
 const progressLabel = $<HTMLElement>('progressLabel')
@@ -62,14 +61,15 @@ let currentSidelen = 96
 
 // recorded morph frames for the post-run animation
 let animFrames: Uint8ClampedArray[] = []
-let animIndex = 0
+let film: FilmClock | null = null
 let animPlaying = false
 let animReverse = false
 let animTimer: ReturnType<typeof setTimeout> | null = null
-const ANIM_FRAME_MS = 45
-const ANIM_MAX_FRAMES = 320
+const HOLD_MS = 2000
+const ANIM_FRAME_MS = 42
+const ANIM_MAX_FRAMES = 360
 
-const GIF_OPTIONS: GifOptions = { delayMs: 55, maxFrames: 140, colors: 192 }
+const GIF_OPTIONS: GifOptions = { delayMs: 60, maxFrames: 160, colors: 192 }
 
 // ---------------------------------------------------------------------------
 // tiny helpers
@@ -238,14 +238,19 @@ function compressAnimFrames() {
 }
 
 function startAnim() {
-  if (animFrames.length < 2) return
+  if (animFrames.length < 2 || !film) return
   animPlaying = true
   playAnimBtn.textContent = 'pause animation'
+  film.setReverse(animReverse)
+  const start = film.begin()
+  const frame = animFrames[start.frame]
+  if (frame) drawOn(resultCanvas, frame, currentSidelen, false)
   scheduleTick()
 }
 
 function stopAnim() {
   animPlaying = false
+  film?.pause()
   playAnimBtn.textContent = 'play animation'
   if (animTimer !== null) {
     clearTimeout(animTimer)
@@ -256,7 +261,7 @@ function stopAnim() {
 function resetAnim() {
   stopAnim()
   animFrames = []
-  animIndex = 0
+  film = null
   animReverse = false
   reverseAnimBtn.classList.remove('on')
   reverseAnimBtn.setAttribute('aria-pressed', 'false')
@@ -265,13 +270,17 @@ function resetAnim() {
 function scheduleTick() {
   animTimer = setTimeout(() => {
     animTimer = null
-    if (!animPlaying) return
-    animIndex += animReverse ? -1 : 1
-    if (animIndex < 0) animIndex = animFrames.length - 1
-    else if (animIndex >= animFrames.length) animIndex = 0
-    const frame = animFrames[animIndex]
+    if (!animPlaying || !film) return
+    const step = film.tick()
+    const frame = animFrames[step.frame]
     if (frame) drawOn(resultCanvas, frame, currentSidelen, false)
-    scheduleTick()
+    if (step.running) {
+      scheduleTick()
+    } else {
+      // the film reached the final Gandhi (or the source, reversed): stop here
+      animPlaying = false
+      playAnimBtn.textContent = 'play animation'
+    }
   }, ANIM_FRAME_MS)
 }
 
@@ -320,9 +329,13 @@ function finishJob(d: DoneRetort) {
   // replayable animation of the whole solve (incl. the original photo)
   compressAnimFrames()
   playAnimBtn.disabled = animFrames.length < 2
+  film = makeFilmClock({
+    frameCount: animFrames.length,
+    holdMs: HOLD_MS,
+    frameMs: ANIM_FRAME_MS,
+  })
   const reduceMotion =
     typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches
-  animIndex = reduceMotion ? 0 : -1
   if (!reduceMotion) startAnim()
 
   // downloads
@@ -333,9 +346,8 @@ function finishJob(d: DoneRetort) {
   // mobile sharing
   shareBtn.hidden = typeof navigator.share !== 'function'
 
-  const prox = Number(subtlety.value)
   const elapsed = Math.max(0, (performance.now() - jobStartMs) / 1000)
-  stats.textContent = `finished in ${elapsed.toFixed(1)}s after ${d.generations} generations (${d.swaps.toLocaleString()} swaps) · proximity ${prox}`
+  stats.textContent = `finished in ${elapsed.toFixed(1)}s after ${d.generations} generations (${d.swaps.toLocaleString()} swaps) · proximity 6`
 }
 
 // gif datastore in a data url (small enough to keep in memory)
@@ -438,7 +450,6 @@ function runJob() {
   clearError()
 
   const sidelen = Number(resolutionSel.value)
-  const prox = Number(subtlety.value)
 
   let sourceRgba: ImageDataLike
   try {
@@ -475,7 +486,7 @@ function runJob() {
       weights: weightsRgba,
       settings: {
         sidelen,
-        proximityImportance: prox,
+        proximityImportance: 6,
         maxGenerations: 900,
       },
       gif: GIF_OPTIONS,
@@ -564,10 +575,6 @@ changePhoto.addEventListener('click', () => {
   resetAnim()
 })
 
-subtlety.addEventListener('input', () => {
-  subtletyOut.textContent = subtlety.value
-})
-
 goBtn.addEventListener('click', () => runJob())
 
 cancelBtn.addEventListener('click', () => {
@@ -597,6 +604,7 @@ playAnimBtn.addEventListener('click', () => {
 
 reverseAnimBtn.addEventListener('click', () => {
   animReverse = !animReverse
+  film?.setReverse(animReverse)
   reverseAnimBtn.classList.toggle('on', animReverse)
   reverseAnimBtn.setAttribute('aria-pressed', String(animReverse))
 })
@@ -632,7 +640,10 @@ const isStandalone =
   typeof matchMedia === 'function' && matchMedia('(display-mode: standalone)').matches
 
 function syncInstallBtn() {
-  installBtn.hidden = !deferredPrompt || isStandalone
+  const show = !deferredPrompt && !isStandalone
+  installBtn.hidden = !show
+  // hide the ⋯ button too, so we never show an empty/dead menu
+  menuBtn.hidden = !show
 }
 
 window.addEventListener(
@@ -665,6 +676,9 @@ installBtn.addEventListener('click', async () => {
   syncInstallBtn()
 })
 
+// hide the ⋯ menu up front unless/until the app is installable
+syncInstallBtn()
+
 // ---------------------------------------------------------------------------
 // PWA offline shell
 // ---------------------------------------------------------------------------
@@ -686,3 +700,14 @@ morphCanvas.width = 96
 morphCanvas.height = 96
 resultCanvas.width = 96
 resultCanvas.height = 96
+
+// debug hook for the e2e harness: ?debug in the URL exposes the film state
+if (new URLSearchParams(location.search).has('debug')) {
+  ;(window as unknown as Record<string, unknown>).__morphDebug = () => ({
+    playing: animPlaying,
+    len: animFrames.length,
+    index: film ? film.index : -1,
+    hold: film ? film.hold : 0,
+    running: film ? film.running : false,
+  })
+}

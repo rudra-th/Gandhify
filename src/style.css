@@ -141,7 +141,9 @@ main {
 .menu-backdrop {
   position: fixed;
   inset: 0;
-  z-index: 40;
+  /* below the header (stacking context .site-header z-index: 30) so the
+     open menu panel stays clickable; above page content to catch outside taps */
+  z-index: 25;
 }
 
 .menu-panel {
@@ -206,39 +208,6 @@ main {
   width: 18px;
   height: 18px;
   flex: none;
-}
-
-.menu-title {
-  margin: 2px 12px 4px;
-  font-size: 11px;
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
-  color: var(--ink-soft);
-}
-
-.menu-field {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 4px 12px;
-  font-size: 13.5px;
-  color: var(--ink-soft);
-}
-
-.menu-field select {
-  max-width: 118px;
-}
-
-.menu-slider {
-  flex-direction: column;
-  align-items: stretch;
-  gap: 8px;
-}
-
-.menu-slider output {
-  color: var(--accent);
-  font-weight: 700;
 }
 
 /* ---- error ---- */
@@ -317,8 +286,8 @@ main {
 .controls {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  gap: 10px;
+  align-items: stretch;
+  gap: 12px;
   background: var(--paper-2);
   border: 1px solid var(--line);
   border-radius: 16px;
@@ -330,12 +299,23 @@ main {
   padding: 14px 20px;
   width: 100%;
   max-width: 320px;
+  align-self: center;
 }
 
-.controls-hint {
-  margin: 0;
-  font-size: 12px;
+.field {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.field-label {
+  font-size: 13.5px;
   color: var(--ink-soft);
+}
+
+.field select {
+  min-width: 150px;
 }
 
 /* ---- buttons ---- */
@@ -441,7 +421,6 @@ input[type='range'] {
   width: min(72vw, 380px);
   max-width: 100%;
   height: auto;
-  image-rendering: pixelated;
   border-radius: 14px;
   box-shadow: var(--shadow);
 }

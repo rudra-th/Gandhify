@@ -49,7 +49,7 @@ try {
       `--user-data-dir=${profileDir}`,
       `--remote-debugging-port=${CDP_PORT}`,
       '--remote-allow-origins=*',
-      `http://127.0.0.1:${APP_PORT}/`,
+      `http://127.0.0.1:${APP_PORT}/?debug`,
     ].filter(Boolean),
     { stdio: ['ignore', 'pipe', 'pipe'] },
   )
@@ -165,8 +165,19 @@ try {
   )
   const statsText = await evaluate('document.getElementById("stats").textContent')
 
-  // 6. animation should have auto-started and be moving the canvas
+  // 6. animation should auto-start: hold on the source, then advance. Chromium
+  //    throttles setTimeout in occluded windows, so we assert on the exposed
+  //    film index (via the ?debug hook) instead of wall-clock canvas hashes.
   const playLabel = await evaluate('document.getElementById("playAnim").textContent')
+  const debugA = await evaluate('window.__morphDebug ? window.__morphDebug() : null')
+  await waitFor(
+    async () => {
+      const d = await evaluate('window.__morphDebug ? window.__morphDebug() : null')
+      return !!d && d.index >= 6
+    },
+    90000,
+    'morph film did not advance past the hold',
+  )
   const probe1 = await evaluate(`(() => {
     const c = document.getElementById('resultCanvas');
     const d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data;
@@ -178,14 +189,8 @@ try {
     for (let i = 0; i < d.length; i += 40) v += (d[i] - mean) ** 2;
     return { w: c.width, h: c.height, mean, span: v / (d.length / 40), hash: h };
   })()`)
-  await sleep(700)
-  const probe2 = await evaluate(`(() => {
-    const c = document.getElementById('resultCanvas');
-    const d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data;
-    let h = 0;
-    for (let i = 0; i < d.length; i += 4) h = (h * 31 + d[i]) | 0;
-    return h;
-  })()`)
+  const debugB = await evaluate('window.__morphDebug ? window.__morphDebug() : null')
+  const animMoved = (debugB?.index ?? 0) > (debugA?.index ?? 0)
 
   // 7. toggle reverse, confirm state
   await evaluate('document.getElementById("reverseAnim").click()')
@@ -213,7 +218,8 @@ try {
     ms: Date.now() - t0,
     playLabel,
     canvas: probe1,
-    animMoved: probe1.hash !== probe2,
+    animMoved,
+    debug: debugA && debugB ? `${JSON.stringify(debugA)} -> ${JSON.stringify(debugB)}` : null,
     reversePressed,
     menuOpen,
     menuClosed,
@@ -226,7 +232,7 @@ try {
   if (pageErrors.length) checks.push('page errors: ' + pageErrors.join(' | '))
   if (playLabel !== 'pause animation') checks.push('animation did not autoplay')
   if (!probe1.span || probe1.span === 0) checks.push('result canvas appears blank')
-  if (probe1.hash === probe2) checks.push('animation did not advance the canvas')
+  if (!animMoved) checks.push('morph film did not advance past the hold')
   if (!menuOpen || !menuClosed) checks.push('⋯ menu did not open/close')
   if (checks.length) throw new Error(checks.join(' ; '))
   console.log('\nE2E OK — screenshot at scripts/out/e2e-result.png')
