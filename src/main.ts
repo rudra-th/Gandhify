@@ -65,7 +65,7 @@ let film: FilmClock | null = null
 let animPlaying = false
 let animReverse = false
 let animTimer: ReturnType<typeof setTimeout> | null = null
-const HOLD_MS = 2000
+const HOLD_MS = 700
 const ANIM_FRAME_MS = 42
 const ANIM_MAX_FRAMES = 360
 

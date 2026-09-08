@@ -87,11 +87,14 @@ function encodeGif(
   return gif.bytes()
 }
 
-/** how many in-between frames to synthesize per generation of swaps.
- *  12 small batches per generation keeps most pixels still at any instant,
- *  so the morph creeps into place organically (obamify-style) instead of
- *  churning the whole image at once. */
-const SMOOTH_STEPS = 12
+/** sub-frames to synthesize for the generation at progress 0..1.
+ *  Early generations get many sub-frames (pixels creep very slowly), late
+ *  generations get almost none (a fast rush) so the morph visibly accelerates
+ *  toward the final Gandhi (obamify pacing). */
+function stepsFor(progress: number): number {
+  const t = Math.min(1, Math.max(0, progress))
+  return Math.max(2, Math.round(18 - 16 * t * t))
+}
 
 ctx.onmessage = (event: MessageEvent<JobRequest>) => {
   const req = event.data
@@ -108,7 +111,7 @@ ctx.onmessage = (event: MessageEvent<JobRequest>) => {
       settings: req.settings,
       onFrame: (generation, progress, swaps, image) => {
         const saved = image.slice(0) // keep a worker copy before transferring
-        const smooth = buildSmoothFrames(lastImg, image, swaps, SMOOTH_STEPS)
+        const smooth = buildSmoothFrames(lastImg, image, swaps, stepsFor(progress))
         const n = smooth.length
         for (let i = 0; i < n; i++) {
           const frame = smooth[i]
