@@ -234,6 +234,10 @@ function compressAnimFrames() {
   const stride = Math.ceil(animFrames.length / ANIM_MAX_FRAMES)
   const next: Uint8ClampedArray[] = []
   for (let i = 0; i < animFrames.length; i += stride) next.push(animFrames[i])
+  // the film stops on its last frame — always keep the exact final Gandhi
+  if (next[next.length - 1] !== animFrames[animFrames.length - 1]) {
+    next.push(animFrames[animFrames.length - 1])
+  }
   animFrames = next
 }
 

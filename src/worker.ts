@@ -62,7 +62,8 @@ function createFrameStore(maxFrames: number) {
       const stride = Math.ceil(frames.length / count)
       const out: Uint8ClampedArray[] = []
       for (let i = 0; i < frames.length; i += stride) out.push(frames[i])
-      if (out.length === 0) out.push(frames[frames.length - 1])
+      // GIFs also stop on the final frame — keep the exact end state
+      if (out[out.length - 1] !== frames[frames.length - 1]) out.push(frames[frames.length - 1])
       return out
     },
   }

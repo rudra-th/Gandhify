@@ -46,11 +46,21 @@ for (const [x, y] of swapPairs) applySwapAt(cur, x, y)
 test('replays the exact final state from a partial animation', () => {
   const out = buildSmoothFrames(prev, cur, { a, b }, 3)
   assert.equal(out.length, 3)
+  // the last frame is exactly the generation's true final state
   assert.deepEqual(out[out.length - 1], cur)
-  // intermediate frames are monotone stages toward the end state
-  let mid = out[0]
-  for (let j = 0; j < 3; j++) applySwapAt(mid, a[j], b[j])
-  assert.deepEqual(out[0], mid)
+  // intermediate frames progressively move toward cur (they are not prev, not
+  // cur, and not identical to each other — that is the glide motion)
+  assert.notDeepEqual(out[0], prev)
+  assert.notDeepEqual(out[1], prev)
+  assert.notDeepEqual(out[0], cur)
+  assert.notDeepEqual(out[1], cur)
+  assert.notDeepEqual(out[0], out[1])
+})
+
+test('single-step glide collapses to the exact end state', () => {
+  const one = buildSmoothFrames(prev, cur, { a, b }, 1)
+  assert.equal(one.length, 1)
+  assert.deepEqual(one[0], cur)
 })
 
 test('no swaps -> single frame equal to cur', () => {
