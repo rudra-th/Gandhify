@@ -191,9 +191,19 @@ try {
   await evaluate('document.getElementById("reverseAnim").click()')
   const reversePressed = await evaluate('document.getElementById("reverseAnim").getAttribute("aria-pressed")')
 
-  // 8. screenshot for human eyeballing
+  // 7.5 ⋯ menu opens and closes (open before screenshot so it's visible)
+  await evaluate('document.getElementById("menuBtn").click()')
+  const menuOpen = await evaluate(
+    '(!document.getElementById("menuPanel").hidden && document.getElementById("menuBtn").getAttribute("aria-expanded") === "true")',
+  )
+
+  // 8. screenshot for human eyeballing (menu left open)
   const shot = await send('Page.captureScreenshot', { format: 'png' })
   writeFileSync(resolve(HERE, 'out/e2e-result.png'), Buffer.from(shot.data, 'base64'))
+
+  await evaluate('document.getElementById("menuBackdrop").click()')
+  const menuClosed = await evaluate('document.getElementById("menuPanel").hidden')
+  const installVisible = await evaluate('!document.getElementById("installBtn").hidden')
 
   clearInterval(poll)
   const pageErrors = [...exceptions, ...(await evaluate('window.__errs'))]
@@ -205,6 +215,9 @@ try {
     canvas: probe1,
     animMoved: probe1.hash !== probe2,
     reversePressed,
+    menuOpen,
+    menuClosed,
+    installVisible,
     pageErrors,
   }
   console.log(JSON.stringify(report, null, 2))
@@ -214,6 +227,7 @@ try {
   if (playLabel !== 'pause animation') checks.push('animation did not autoplay')
   if (!probe1.span || probe1.span === 0) checks.push('result canvas appears blank')
   if (probe1.hash === probe2) checks.push('animation did not advance the canvas')
+  if (!menuOpen || !menuClosed) checks.push('⋯ menu did not open/close')
   if (checks.length) throw new Error(checks.join(' ; '))
   console.log('\nE2E OK — screenshot at scripts/out/e2e-result.png')
 } catch (err) {

@@ -33,6 +33,10 @@ const playAnimBtn = $<HTMLButtonElement>('playAnim')
 const reverseAnimBtn = $<HTMLButtonElement>('reverseAnim')
 const stats = $<HTMLElement>('stats')
 const appError = $<HTMLElement>('app-error')
+const menuBtn = $<HTMLButtonElement>('menuBtn')
+const menuPanel = $<HTMLElement>('menuPanel')
+const menuBackdrop = $<HTMLElement>('menuBackdrop')
+const installBtn = $<HTMLButtonElement>('installBtn')
 
 // ---------------------------------------------------------------------------
 // state
@@ -596,6 +600,80 @@ reverseAnimBtn.addEventListener('click', () => {
   reverseAnimBtn.classList.toggle('on', animReverse)
   reverseAnimBtn.setAttribute('aria-pressed', String(animReverse))
 })
+
+// ---------------------------------------------------------------------------
+// ⋯ menu
+// ---------------------------------------------------------------------------
+
+interface BeforeInstallPromptEvent extends Event {
+  prompt(): Promise<void>
+  userChoice: Promise<{ outcome: 'accepted' | 'dismissed'; platform: string }>
+}
+
+function setMenu(open: boolean) {
+  menuBtn.setAttribute('aria-expanded', String(open))
+  menuPanel.hidden = !open
+  menuBackdrop.hidden = !open
+}
+
+menuBtn.addEventListener('click', () => setMenu(menuPanel.hidden))
+menuBackdrop.addEventListener('click', () => setMenu(false))
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') setMenu(false)
+})
+
+// ---------------------------------------------------------------------------
+// install (PWA)
+// ---------------------------------------------------------------------------
+
+let deferredPrompt: BeforeInstallPromptEvent | null = null
+
+const isStandalone =
+  typeof matchMedia === 'function' && matchMedia('(display-mode: standalone)').matches
+
+function syncInstallBtn() {
+  installBtn.hidden = !deferredPrompt || isStandalone
+}
+
+window.addEventListener(
+  'beforeinstallprompt',
+  ((e: Event) => {
+    e.preventDefault()
+    deferredPrompt = e as BeforeInstallPromptEvent
+    syncInstallBtn()
+  }) as EventListener,
+)
+
+window.addEventListener(
+  'appinstalled',
+  (() => {
+    deferredPrompt = null
+    syncInstallBtn()
+  }) as EventListener,
+)
+
+installBtn.addEventListener('click', async () => {
+  if (!deferredPrompt) return
+  const prompt = deferredPrompt
+  deferredPrompt = null
+  try {
+    await prompt.prompt()
+    await prompt.userChoice
+  } catch {
+    /* user dismissed */
+  }
+  syncInstallBtn()
+})
+
+// ---------------------------------------------------------------------------
+// PWA offline shell
+// ---------------------------------------------------------------------------
+
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    void navigator.serviceWorker.register('/sw.js').catch(() => {})
+  })
+}
 
 // ---------------------------------------------------------------------------
 // boot
