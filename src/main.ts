@@ -39,6 +39,7 @@ const appError = $<HTMLElement>('app-error')
 // ---------------------------------------------------------------------------
 
 let sourceBitmap: (CanvasImageSource & { width: number; height: number }) | null = null
+let previewUrl: string | null = null
 
 // canonical 256x256 target + weights, decoded once
 let target256: ImageDataLike | null = null
@@ -51,6 +52,7 @@ const weightsCache = new Map<number, ImageDataLike>()
 let worker: Worker | null = null
 let queuedJobId = 0
 let currentJobId = -1
+let jobStartMs = 0
 let lastResult: ImageDataLike | null = null
 let currentSidelen = 96
 
@@ -186,7 +188,7 @@ function ensureWorker(): Worker {
         const f = msg as FrameRetort
         currentSidelen = f.side
         drawOn(morphCanvas, f.data, f.side)
-        recordAnimFrame(f.data.slice(0))
+        recordAnimFrame(f.data)
         setProgress(f.progress * 100, `generation ${f.generation}`)
         break
       }
@@ -205,6 +207,7 @@ function ensureWorker(): Worker {
     }
   }
   worker.onerror = (event) => {
+    if (currentJobId === -1) return
     setProgress(0)
     showStage('picked')
     showError('the worker failed: ' + event.message)
@@ -217,6 +220,7 @@ function ensureWorker(): Worker {
 // ---------------------------------------------------------------------------
 
 function recordAnimFrame(img: Uint8ClampedArray) {
+  // `img` is already transfer-owned by this thread; keep the reference, no copy.
   animFrames.push(img)
   if (animFrames.length > ANIM_MAX_FRAMES * 2) compressAnimFrames()
 }
@@ -304,16 +308,18 @@ function drawOn(canvas: HTMLCanvasElement, data: Uint8ClampedArray, sidelen: num
 }
 
 function finishJob(d: DoneRetort) {
-  showStage('done')
   if (!lastResult) return
+  showStage('done')
   drawOn(resultCanvas, lastResult.data, lastResult.width)
   setProgress(100)
 
   // replayable animation of the whole solve (incl. the original photo)
   compressAnimFrames()
-  animIndex = -1
   playAnimBtn.disabled = animFrames.length < 2
-  startAnim()
+  const reduceMotion =
+    typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches
+  animIndex = reduceMotion ? 0 : -1
+  if (!reduceMotion) startAnim()
 
   // downloads
   downloadPng.disabled = false
@@ -321,11 +327,11 @@ function finishJob(d: DoneRetort) {
   downloadGif.disabled = !d.gifBytes
 
   // mobile sharing
-  const canShare = typeof navigator.share === 'function'
-  shareBtn.hidden = !canShare
+  shareBtn.hidden = typeof navigator.share !== 'function'
 
   const prox = Number(subtlety.value)
-  stats.textContent = `finished in ${(performance.now() / 1000).toFixed(0)}s after ${d.generations} generations (${d.swaps.toLocaleString()} swaps) · proximity ${prox}`
+  const elapsed = Math.max(0, (performance.now() - jobStartMs) / 1000)
+  stats.textContent = `finished in ${elapsed.toFixed(1)}s after ${d.generations} generations (${d.swaps.toLocaleString()} swaps) · proximity ${prox}`
 }
 
 // gif datastore in a data url (small enough to keep in memory)
@@ -337,9 +343,15 @@ function encodeGifDataUrl(bytes: Uint8Array): string {
 
 function onDownloadPng() {
   if (!lastResult) return
-  resultCanvas.toBlob((blob) => {
-    if (!blob) return
-    triggerDownload(blob, 'gandhified.png')
+  // export the FINAL result, never whatever frame the film is paused on
+  const canvas = document.createElement('canvas')
+  canvas.width = lastResult.width
+  canvas.height = lastResult.height
+  const ctx = canvas.getContext('2d', { willReadFrequently: true })
+  if (!ctx) return
+  ctx.putImageData(new ImageData(lastResult.data as Uint8ClampedArray<ArrayBuffer>, lastResult.width, lastResult.height), 0, 0)
+  canvas.toBlob((blob) => {
+    if (blob) triggerDownload(blob, 'gandhified.png')
   }, 'image/png')
 }
 
@@ -379,9 +391,19 @@ function triggerDownload(blob: Blob, name: string) {
 
 async function onShare() {
   if (!lastResult) return
-  const pngBlob = await new Promise<Blob | null>((resolve) =>
-    resultCanvas.toBlob(resolve, 'image/png'),
-  )
+  const pngBlob = await new Promise<Blob | null>((resolve) => {
+    const canvas = document.createElement('canvas')
+    canvas.width = lastResult!.width
+    canvas.height = lastResult!.height
+    const ctx = canvas.getContext('2d', { willReadFrequently: true })
+    if (!ctx) return resolve(null)
+    ctx.putImageData(
+      new ImageData(lastResult!.data as Uint8ClampedArray<ArrayBuffer>, lastResult!.width, lastResult!.height),
+      0,
+      0,
+    )
+    canvas.toBlob(resolve, 'image/png')
+  })
   const gifData = downloadGif.dataset.gif
   const gifBlob = gifData ? new Blob([dataUrlToBytes(gifData)], { type: 'image/gif' }) : null
   const files: File[] = []
@@ -401,7 +423,14 @@ async function onShare() {
 // ---------------------------------------------------------------------------
 
 function runJob() {
-  if (!sourceBitmap || !target256 || !weights256) return
+  if (!sourceBitmap) {
+    showError('pick a photo first')
+    return
+  }
+  if (!target256 || !weights256) {
+    showError('the Gandhi assets are still loading — give it a second and try again')
+    return
+  }
   clearError()
 
   const sidelen = Number(resolutionSel.value)
@@ -427,6 +456,7 @@ function runJob() {
 
   const id = ++queuedJobId
   currentJobId = id
+  jobStartMs = performance.now()
   lastResult = null
   currentSidelen = sidelen
   resetAnim()
@@ -467,12 +497,30 @@ async function handleFiles(files: FileList | File[]) {
   if (!file) return
   try {
     const bitmap = await createImageBitmap(file)
+    releaseSourceBitmap()
+    releasePreviewUrl()
     sourceBitmap = bitmap
-    sourcePreview.src = URL.createObjectURL(file)
+    previewUrl = URL.createObjectURL(file)
+    sourcePreview.src = previewUrl
     showStage('picked')
     clearError()
   } catch (err) {
     showError('could not read that image: ' + (err instanceof Error ? err.message : String(err)))
+  }
+}
+
+function releaseSourceBitmap() {
+  if (sourceBitmap) {
+    const bitmap = sourceBitmap as ImageBitmap
+    if (typeof bitmap.close === 'function') bitmap.close()
+  }
+  sourceBitmap = null
+}
+
+function releasePreviewUrl() {
+  if (previewUrl !== null) {
+    URL.revokeObjectURL(previewUrl)
+    previewUrl = null
   }
 }
 
@@ -505,9 +553,10 @@ dropzone.addEventListener('drop', (e) => {
 })
 
 changePhoto.addEventListener('click', () => {
-  showStage('idle')
-  sourceBitmap = null
+  releaseSourceBitmap()
+  releasePreviewUrl()
   sourcePreview.src = ''
+  showStage('idle')
   resetAnim()
 })
 
@@ -525,10 +574,11 @@ cancelBtn.addEventListener('click', () => {
 })
 
 againBtn.addEventListener('click', () => {
-  showStage('idle')
-  sourceBitmap = null
+  releaseSourceBitmap()
+  releasePreviewUrl()
   sourcePreview.src = ''
   lastResult = null
+  showStage('idle')
   resetAnim()
 })
 
