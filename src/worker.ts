@@ -94,13 +94,14 @@ function encodeGif(
   return gif.bytes()
 }
 
-/** sub-frames to synthesize for the generation at progress 0..1.
- *  Early generations get many sub-frames (pixels creep very slowly), late
- *  generations get almost none (a fast rush) so the morph visibly accelerates
- *  toward the final Gandhi (obamify pacing). */
-function stepsFor(progress: number): number {
-  const t = Math.min(1, Math.max(0, progress))
-  return Math.max(2, Math.round(18 - 16 * t * t))
+/** sub-frames to synthesize for one generation, based on how many pixels
+ *  actually moved (`swaps`). The solver does most of its work in the opening
+ *  generations (gen 1 alone re-places ~30% of the image), so giving those
+ *  many sub-frames turns the photo->Gandhi change into a slow dissolve instead
+ *  of a sudden lurch; the quiet refinement tail gets one still per generation
+ *  and ends quickly instead of lingering. */
+function stepsForSwaps(swaps: number): number {
+  return Math.max(1, Math.min(72, Math.round(swaps / 35)))
 }
 
 ctx.onmessage = (event: MessageEvent<JobRequest>) => {
@@ -118,7 +119,8 @@ ctx.onmessage = (event: MessageEvent<JobRequest>) => {
       settings: req.settings,
       onFrame: (generation, progress, swaps, image) => {
         const saved = image.slice(0) // keep a worker copy before transferring
-        const smooth = buildSmoothFrames(lastImg, image, swaps, stepsFor(progress))
+        const k = swaps ? swaps.a.length : 0
+        const smooth = buildSmoothFrames(lastImg, image, swaps, stepsForSwaps(k))
         const n = smooth.length
         for (let i = 0; i < n; i++) {
           const frame = smooth[i]

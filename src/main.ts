@@ -70,7 +70,7 @@ const HOLD_MS = 700
 const ANIM_FRAME_MS = 42
 const ANIM_MAX_FRAMES = 360
 
-const GIF_OPTIONS: GifOptions = { delayMs: 60, maxFrames: 160, colors: 192, holdMs: HOLD_MS }
+const GIF_OPTIONS: GifOptions = { delayMs: 60, maxFrames: 240, colors: 192, holdMs: HOLD_MS }
 
 // ---------------------------------------------------------------------------
 // tiny helpers
