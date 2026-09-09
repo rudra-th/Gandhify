@@ -7,6 +7,8 @@ export interface GifOptions {
   delayMs: number
   maxFrames: number
   colors: number
+  /** extra duration for the first frame, mirroring the on-screen hold on the source photo */
+  holdMs: number
 }
 
 interface JobRequest {
@@ -76,12 +78,17 @@ function encodeGif(
   opts: GifOptions,
 ): Uint8Array {
   const gif = GIFEncoder()
-  const delay = Math.max(1, Math.round(opts.delayMs))
   const colors = Math.min(256, Math.max(16, opts.colors))
-  for (const frame of frames) {
-    const palette = quantize(frame, colors)
-    const index = applyPalette(frame, palette)
-    gif.writeFrame(index, width, height, { palette, delay })
+  for (let i = 0; i < frames.length; i++) {
+    const palette = quantize(frames[i], colors)
+    const index = applyPalette(frames[i], palette)
+    // first frame carries the on-screen source hold; repeat -1 emits no
+    // NETSCAPE loop extension so the GIF plays once and stops on Gandhi
+    gif.writeFrame(index, width, height, {
+      palette,
+      delay: Math.max(1, Math.round(opts.delayMs + (i === 0 ? opts.holdMs : 0))),
+      repeat: i === 0 ? -1 : undefined,
+    })
   }
   gif.finish()
   return gif.bytes()

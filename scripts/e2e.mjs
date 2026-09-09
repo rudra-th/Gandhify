@@ -165,6 +165,35 @@ try {
   )
   const statsText = await evaluate('document.getElementById("stats").textContent')
 
+  // 5.5 inspect the produced GIF: must carry the source hold on frame 1 and
+  //    must NOT carry a NETSCAPE loop extension (plays once, stops on Gandhi)
+  const gifInspect = await evaluate(`(() => {
+    try {
+      const b64 = document.getElementById('downloadGif').dataset.gif || '';
+      if (!b64) return null;
+      const bin = atob(b64.split(',')[1]);
+      const u8 = new Uint8Array(bin.length);
+      for (let i = 0; i < bin.length; i++) u8[i] = bin.charCodeAt(i);
+      let netscape = false, firstDelay = 0, frames = 0;
+      for (let i = 6; i < u8.length - 16; i++) {
+        if (u8[i] === 0x21 && u8[i + 1] === 0xf9) {
+          const delay = (u8[i + 4] | (u8[i + 5] << 8)) * 10;
+          if (frames === 0) firstDelay = delay;
+          frames++;
+          i += 8;
+        } else if (u8[i] === 0x21 && u8[i + 1] === 0xff) {
+          const app = String.fromCharCode(u8[i + 3], u8[i + 4], u8[i + 5], u8[i + 6],
+            u8[i + 7], u8[i + 8], u8[i + 9], u8[i + 10], u8[i + 11], u8[i + 12], u8[i + 13]);
+          if (app === 'NETSCAPE2.0') netscape = true;
+        }
+      }
+      return { frames, firstDelay, netscape };
+    } catch (e) { return { error: String(e) }; }
+  })()`)
+  if (gifInspect?.netscape) checks.push('gif contains a looping NETSCAPE extension')
+  if (gifInspect && !gifInspect.error && gifInspect.firstDelay < 700)
+    checks.push('gif does not hold on the source photo (first frame too short)')
+
   // 6. animation should auto-start: hold on the source, then advance. Chromium
   //    throttles setTimeout in occluded windows, so we assert on the exposed
   //    film index (via the ?debug hook) instead of wall-clock canvas hashes.
@@ -224,6 +253,7 @@ try {
     menuOpen,
     menuClosed,
     installVisible,
+    gifInspect,
     pageErrors,
   }
   console.log(JSON.stringify(report, null, 2))
