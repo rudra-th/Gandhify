@@ -36,6 +36,7 @@ const menuBtn = $<HTMLButtonElement>('menuBtn')
 const menuPanel = $<HTMLElement>('menuPanel')
 const menuBackdrop = $<HTMLElement>('menuBackdrop')
 const installBtn = $<HTMLButtonElement>('installBtn')
+const menuNote = $<HTMLElement>('menuNote')
 
 // ---------------------------------------------------------------------------
 // state
@@ -644,10 +645,15 @@ const isStandalone =
   typeof matchMedia === 'function' && matchMedia('(display-mode: standalone)').matches
 
 function syncInstallBtn() {
-  const show = !deferredPrompt && !isStandalone
-  installBtn.hidden = !show
-  // hide the ⋯ button too, so we never show an empty/dead menu
-  menuBtn.hidden = !show
+  const canInstall = !deferredPrompt && !isStandalone
+  installBtn.hidden = !canInstall
+  // the ⋯ button never disappears — install is the only menu item, so when it
+  // is unavailable the menu shows a short note instead of nothing
+  menuBtn.hidden = false
+  menuNote.hidden = canInstall
+  menuNote.textContent = isStandalone
+    ? 'gandhify is installed'
+    : 'install is available in Chrome, Edge, or Android'
 }
 
 window.addEventListener(

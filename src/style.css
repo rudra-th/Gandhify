@@ -210,6 +210,15 @@ main {
   flex: none;
 }
 
+.menu-note {
+  margin: 0;
+  padding: 10px 12px;
+  font-size: 13px;
+  line-height: 1.4;
+  color: var(--ink-faint, var(--ink-soft));
+  opacity: 0.75;
+}
+
 /* ---- error ---- */
 .app-error {
   background: #572013;
