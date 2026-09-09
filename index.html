@@ -23,25 +23,35 @@
             <p class="tagline">turns any image into Mahatma Gandhi</p>
           </span>
         </div>
-        <div class="menu-wrap">
-          <button id="menuBtn" class="icon-btn" type="button" aria-label="Open menu" aria-haspopup="menu" aria-expanded="false">
-            <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-              <circle cx="12" cy="5" r="1.9" />
-              <circle cx="12" cy="12" r="1.9" />
-              <circle cx="12" cy="19" r="1.9" />
+        <div class="header-actions">
+          <button id="installBtn" class="install-btn" type="button" aria-label="Install Gandhify as an app">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M12 3v12" />
+              <path d="m7 10 5 5 5-5" />
+              <path d="M5 19h14" />
             </svg>
+            <span id="installLabel">Install</span>
           </button>
-          <div id="menuPanel" class="menu-panel" role="menu" hidden>
-            <div class="menu-section">
-              <button id="installBtn" class="menu-item" type="button" role="menuitem" hidden>
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                  <path d="M12 3v12" />
-                  <path d="m7 10 5 5 5-5" />
-                  <path d="M5 19h14" />
-                </svg>
-                <span>install app</span>
-              </button>
-              <p id="menuNote" class="menu-note" hidden></p>
+          <div class="menu-wrap">
+            <button id="menuBtn" class="icon-btn" type="button" aria-label="Open menu" aria-haspopup="menu" aria-expanded="false">
+              <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                <circle cx="12" cy="5" r="1.9" />
+                <circle cx="12" cy="12" r="1.9" />
+                <circle cx="12" cy="19" r="1.9" />
+              </svg>
+            </button>
+            <div id="menuPanel" class="menu-panel" role="menu" hidden>
+              <div class="menu-section">
+                <button id="menuInstallBtn" class="menu-item" type="button" role="menuitem">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="M12 3v12" />
+                    <path d="m7 10 5 5 5-5" />
+                    <path d="M5 19h14" />
+                  </svg>
+                  <span>install app</span>
+                </button>
+                <p id="menuNote" class="menu-note" hidden></p>
+              </div>
             </div>
           </div>
         </div>
@@ -54,6 +64,10 @@
 
       <!-- pick a photo -->
       <section id="stage">
+        <div class="intro">
+          <h2>Turn any photo into Mahatma Gandhi.</h2>
+          <p>Your eyes become his — pixel by pixel. Everything runs locally in your browser, so nothing is ever uploaded.</p>
+        </div>
         <div id="dropzone" class="dropzone" tabindex="0" role="button" aria-label="Choose a photo">
           <input type="file" id="file" accept="image/*" hidden />
           <div class="dropzone-inner">
@@ -113,10 +127,10 @@
       </section>
 
       <footer>
-        <p>a humble homage to <a href="https://github.com/Spu7Nix/obamify" target="_blank" rel="noopener noreferrer">obamify</a> (MIT).
-        all processing happens in your browser — nothing is uploaded.</p>
+        <p>all processing happens in your browser — nothing is uploaded.</p>
       </footer>
 
+      <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
       <div class="menu-backdrop" id="menuBackdrop" hidden></div>
     </main>
     <script type="module" src="/src/main.ts"></script>

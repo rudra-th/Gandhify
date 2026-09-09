@@ -36,7 +36,10 @@ const menuBtn = $<HTMLButtonElement>('menuBtn')
 const menuPanel = $<HTMLElement>('menuPanel')
 const menuBackdrop = $<HTMLElement>('menuBackdrop')
 const installBtn = $<HTMLButtonElement>('installBtn')
+const installLabel = $<HTMLSpanElement>('installLabel')
+const menuInstallBtn = $<HTMLButtonElement>('menuInstallBtn')
 const menuNote = $<HTMLElement>('menuNote')
+const toast = $<HTMLElement>('toast')
 
 // ---------------------------------------------------------------------------
 // state
@@ -646,14 +649,32 @@ const isStandalone =
 
 function syncInstallBtn() {
   const canInstall = !deferredPrompt && !isStandalone
-  installBtn.hidden = !canInstall
-  // the ⋯ button never disappears — install is the only menu item, so when it
-  // is unavailable the menu shows a short note instead of nothing
+  // the header install button is always visible so there is always an entry
+  // point; once installed it reads "Installed"
+  installBtn.hidden = false
+  installLabel.textContent = isStandalone ? 'Installed' : 'Install'
+  installBtn.classList.toggle('installed', isStandalone)
+  // the ⋯ menu keeps a full-width install item when it applies, and a note
+  // when it doesn't
   menuBtn.hidden = false
+  menuInstallBtn.hidden = !canInstall
   menuNote.hidden = canInstall
   menuNote.textContent = isStandalone
     ? 'gandhify is installed'
     : 'install is available in Chrome, Edge, or Android'
+}
+
+let toastTimer: number | undefined
+
+function showToast(message: string) {
+  toast.textContent = message
+  toast.hidden = false
+  toast.classList.add('show')
+  window.clearTimeout(toastTimer)
+  toastTimer = window.setTimeout(() => {
+    toast.classList.remove('show')
+    toast.hidden = true
+  }, 3200)
 }
 
 window.addEventListener(
@@ -673,18 +694,28 @@ window.addEventListener(
   }) as EventListener,
 )
 
-installBtn.addEventListener('click', async () => {
-  if (!deferredPrompt) return
-  const prompt = deferredPrompt
-  deferredPrompt = null
-  try {
-    await prompt.prompt()
-    await prompt.userChoice
-  } catch {
-    /* user dismissed */
+async function handleInstallClick() {
+  if (deferredPrompt) {
+    const prompt = deferredPrompt
+    deferredPrompt = null
+    try {
+      await prompt.prompt()
+      await prompt.userChoice
+    } catch {
+      /* user dismissed */
+    }
+    syncInstallBtn()
+    return
   }
-  syncInstallBtn()
-})
+  if (isStandalone) {
+    showToast('gandhify is already installed')
+    return
+  }
+  showToast('install from your browser menu — ⋮ (desktop) or Share → Add to Home Screen (mobile)')
+}
+
+installBtn.addEventListener('click', handleInstallClick)
+menuInstallBtn.addEventListener('click', handleInstallClick)
 
 // hide the ⋯ menu up front unless/until the app is installable
 syncInstallBtn()
