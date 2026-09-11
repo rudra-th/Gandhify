@@ -43,8 +43,11 @@ self.addEventListener('fetch', (event) => {
           if (response && response.ok) {
             const copy = response.clone()
             caches.open(CACHE).then((cache) => cache.put(request, copy))
+            return response
           }
-          return response
+          // online but the server erred — serve whatever shell we already have
+          // rather than showing a hard error page
+          return caches.match(request).then((cached) => cached || response)
         })
         .catch(() => caches.match(request).then((cached) => cached || Response.error())),
     )

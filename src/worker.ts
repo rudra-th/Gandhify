@@ -36,6 +36,11 @@ interface DoneRetort {
   swaps: number
   startCost: number
   endCost: number
+}
+
+interface GifRetort {
+  type: 'gif'
+  id: number
   gifBytes: Uint8Array | null
 }
 
@@ -141,13 +146,9 @@ ctx.onmessage = (event: MessageEvent<JobRequest>) => {
       },
     })
 
-    let gifBytes: Uint8Array | null = null
-    if (store && req.gif) {
-      const side = req.settings.sidelen
-      const frames = store.sample(req.gif.maxFrames)
-      gifBytes = frames.length > 0 ? encodeGif(frames, side, side, req.gif) : null
-    }
-
+    // arrive quickly so the result screen (and its replay film) appears the
+    // moment the solve finishes; the GIF encode is comparatively slow (~10s)
+    // and is delivered separately so the UI never looks stuck.
     const done: DoneRetort = {
       type: 'done',
       id: req.id,
@@ -155,9 +156,17 @@ ctx.onmessage = (event: MessageEvent<JobRequest>) => {
       swaps: result.swaps,
       startCost: result.startCost,
       endCost: result.endCost,
-      gifBytes,
     }
-    ctx.postMessage(done, gifBytes ? { transfer: [gifBytes.buffer] } : {})
+    ctx.postMessage(done)
+
+    let gifBytes: Uint8Array | null = null
+    if (store && req.gif) {
+      const side = req.settings.sidelen
+      const frames = store.sample(req.gif.maxFrames)
+      gifBytes = frames.length > 0 ? encodeGif(frames, side, side, req.gif) : null
+    }
+    const gif: GifRetort = { type: 'gif', id: req.id, gifBytes }
+    ctx.postMessage(gif, gifBytes ? { transfer: [gifBytes.buffer] } : {})
   } catch (err) {
     const retort: ErrorRetort = {
       type: 'error',

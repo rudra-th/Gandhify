@@ -205,6 +205,13 @@ function ensureWorker(): Worker {
         finishJob(d)
         break
       }
+      case 'gif': {
+        const g = msg as GifRetort
+        downloadGif.dataset.gif = g.gifBytes ? encodeGifDataUrl(g.gifBytes) : ''
+        downloadGif.disabled = !g.gifBytes || g.gifBytes.length === 0
+        downloadGif.textContent = g.gifBytes ? 'download GIF' : 'GIF unavailable'
+        break
+      }
       case 'error': {
         const e = msg as ErrorRetort
         setProgress(0)
@@ -308,6 +315,11 @@ interface DoneRetort {
   swaps: number
   startCost: number
   endCost: number
+}
+
+interface GifRetort {
+  type: 'gif'
+  id: number
   gifBytes: Uint8Array | null
 }
 
@@ -346,10 +358,12 @@ function finishJob(d: DoneRetort) {
     typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches
   if (!reduceMotion) startAnim()
 
-  // downloads
+  // downloads — PNG is immediate; GIF is still encoding in the worker and
+  // arrives via the 'gif' message
   downloadPng.disabled = false
-  downloadGif.dataset.gif = d.gifBytes ? encodeGifDataUrl(d.gifBytes) : ''
-  downloadGif.disabled = !d.gifBytes
+  downloadGif.dataset.gif = ''
+  downloadGif.disabled = true
+  downloadGif.textContent = 'encoding GIF…'
 
   // mobile sharing
   shareBtn.hidden = typeof navigator.share !== 'function'
@@ -358,10 +372,14 @@ function finishJob(d: DoneRetort) {
   stats.textContent = `finished in ${elapsed.toFixed(1)}s after ${d.generations} generations (${d.swaps.toLocaleString()} swaps) · proximity 6`
 }
 
-// gif datastore in a data url (small enough to keep in memory)
+// gif datastore in a data url (small enough to keep in memory). Built in
+// chunks so a multi-megabyte GIF doesn't trigger O(n^2) string coalescing.
 function encodeGifDataUrl(bytes: Uint8Array): string {
   let binary = ''
-  for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i])
+  const CHUNK = 0x8000
+  for (let i = 0; i < bytes.length; i += CHUNK) {
+    binary += String.fromCharCode(...Array.from(bytes.subarray(i, i + CHUNK)))
+  }
   return 'data:image/gif;base64,' + btoa(binary)
 }
 
@@ -612,9 +630,12 @@ playAnimBtn.addEventListener('click', () => {
 
 reverseAnimBtn.addEventListener('click', () => {
   animReverse = !animReverse
-  film?.setReverse(animReverse)
   reverseAnimBtn.classList.toggle('on', animReverse)
   reverseAnimBtn.setAttribute('aria-pressed', String(animReverse))
+  // when the film is standing still (autoplay finished, or paused), restarting
+  // playback from the matching edge makes the toggle do something visible
+  if (animPlaying) film?.setReverse(animReverse)
+  else startAnim()
 })
 
 // ---------------------------------------------------------------------------
@@ -645,7 +666,8 @@ document.addEventListener('keydown', (e) => {
 let deferredPrompt: BeforeInstallPromptEvent | null = null
 
 const isStandalone =
-  typeof matchMedia === 'function' && matchMedia('(display-mode: standalone)').matches
+  ('standalone' in navigator && (navigator as { standalone?: boolean }).standalone === true) ||
+  (typeof matchMedia === 'function' && matchMedia('(display-mode: standalone)').matches)
 
 function syncInstallBtn() {
   const canInstall = !deferredPrompt && !isStandalone

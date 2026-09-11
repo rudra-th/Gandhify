@@ -6,12 +6,23 @@ import type { FrameSwaps } from './solver'
  * changed this generation GLIDES along a straight line from where it started
  * to where it ends up, spread across `steps` intermediate frames.
  *
+ * Glide quality details:
+ *   - each mover starts at a slightly different instant (a deterministic hash
+ *     of its origin slot), so a generation reads as a fluid wave rather than a
+ *     single synchronized lurch;
+ *   - motion is eased with smoothstep so pixels accelerate out of their slot
+ *     and settle gently into the new one instead of plodding at fixed speed;
+ *   - movers are drawn in "closest-to-destination first" order. When two paths
+ *     cross mid-flight the slot is won by the pixel that has progressed further
+ *     toward its final spot, which keeps the emerging picture from shimmering
+ *     as tokens squeeze past each other.
+ *
  * Because a generation's net effect is a permutation (swap chains threaded
- * through) every destination slot receives exactly one incoming pixel, so the
- * grid stays fully covered. The final returned frame is exactly `cur` — the
- * generation's true final state — and no pixels that are NOT on the move ever
- * change, so most of the picture stays still while the moving slivers creep
- * into place (the obamify "flow" feel).
+ * through) every destination slot receives exactly one incoming pixel, the
+ * final returned frame is exactly `cur` — the generation's true final state —
+ * and every intermediate frame is `prev` with the movers at their eased
+ * positions, so the parts of the picture that stay put keep their exact color
+ * in every frame (the obamify "flow" feel).
  */
 export function buildSmoothFrames(
   prev: Uint8ClampedArray | null,
@@ -33,11 +44,14 @@ export function buildSmoothFrames(
     perm[swaps.b[j]] = x
   }
 
-  // moving tokens: [fromX, fromY, toX, toY, r, g, b] per pixel on the move
+  // moving tokens: [fromX, fromY, toX, toY, r, g, b, delay] per pixel on the
+  // move. delay in [0, STAGGER) staggers the start instant.
+  const STAGGER = 0.28
   const tokens: number[] = []
   for (let i = 0; i < N; i++) {
     if (perm[i] === i) continue
     const idx = i * 4
+    const delay = (((Math.imul(i, 2654435761) >>> 12) % 1000) / 1000) * STAGGER
     tokens.push(
       i % side,
       (i / side) | 0,
@@ -46,20 +60,32 @@ export function buildSmoothFrames(
       prev[idx],
       prev[idx + 1],
       prev[idx + 2],
+      delay,
     )
   }
+
+  // smaller delay => further along at any point in the generation, so drawing
+  // in ascending-delay order puts the most-settled pixels on top.
+  const count = tokens.length / 8
+  const order = Array.from({ length: count }, (_, k) => k).sort(
+    (p, q) => tokens[p * 8 + 7] - tokens[q * 8 + 7],
+  )
 
   const out: Uint8ClampedArray[] = []
   for (let f = 1; f <= F; f++) {
     const t = f / F
     const frame = prev.slice(0)
-    for (let k = 0; k < tokens.length; k += 7) {
-      const x = tokens[k] + (tokens[k + 2] - tokens[k]) * t
-      const y = tokens[k + 1] + (tokens[k + 3] - tokens[k + 1]) * t
+    for (const k of order) {
+      const o = k * 8
+      const span = 1 - tokens[o + 7]
+      const u = Math.max(0, Math.min(1, (t - tokens[o + 7]) / span))
+      const e = u * u * (3 - 2 * u) // smoothstep
+      const x = tokens[o] + (tokens[o + 2] - tokens[o]) * e
+      const y = tokens[o + 1] + (tokens[o + 3] - tokens[o + 1]) * e
       const slot = (Math.round(y) * side + Math.round(x)) * 4
-      frame[slot] = tokens[k + 4]
-      frame[slot + 1] = tokens[k + 5]
-      frame[slot + 2] = tokens[k + 6]
+      frame[slot] = tokens[o + 4]
+      frame[slot + 1] = tokens[o + 5]
+      frame[slot + 2] = tokens[o + 6]
       frame[slot + 3] = 255
     }
     out.push(frame)

@@ -45,7 +45,6 @@ try {
       HEADED ? '' : '--headless=new',
       '--no-first-run',
       '--no-default-browser-check',
-      '--no-startup-window'.slice(0, 0), // keep flags tidy
       `--user-data-dir=${profileDir}`,
       `--remote-debugging-port=${CDP_PORT}`,
       '--remote-allow-origins=*',
@@ -165,7 +164,14 @@ try {
   )
   const statsText = await evaluate('document.getElementById("stats").textContent')
 
-  // 5.5 inspect the produced GIF: must carry the source hold on frame 1 and
+  // 5.5 wait for the GIF to finish encoding (arrives after the 'done' message)
+  await waitFor(
+    async () => (await evaluate('document.getElementById("downloadGif").dataset.gif || ""')) !== '',
+    60000,
+    'GIF encoding did not finish',
+  )
+
+  // 5.6 inspect the produced GIF: must carry the source hold on frame 1 and
   //    must NOT carry a NETSCAPE loop extension (plays once, stops on Gandhi)
   const gifInspect = await evaluate(`(() => {
     try {
