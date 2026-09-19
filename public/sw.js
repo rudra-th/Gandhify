@@ -3,8 +3,8 @@
  * versioned cache name — bumping it (or the hashed assets in the built
  * index.html) guarantees the previous build's stale shell is discarded on
  * activate. */
-const CACHE = 'gandhify-shell-v2'
-const PRECACHE = ['./', './index.html', './manifest.webmanifest', './icon-192.png', './icon-512.png']
+const CACHE = 'gandhify-shell-v3'
+const PRECACHE = ['./', './index.html', './manifest.webmanifest', './icon-192.png', './icon-512.png', './fonts/archivo-var.woff2', './fonts/archivo-italic-900.woff2', './fonts/spacemono-400.woff2', './fonts/spacemono-700.woff2']
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
