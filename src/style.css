@@ -501,6 +501,7 @@ input[type='range'] {
 #progressPct {
   color: var(--accent);
   font-weight: 700;
+  font-variant-numeric: tabular-nums;
 }
 
 .bar {
