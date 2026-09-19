@@ -1,15 +1,27 @@
 :root {
+  color-scheme: dark;
   --bg: #100d08;
   --paper: #16130e;
   --paper-2: #1c1710;
   --panel: #211a10;
   --ink: #f0e8d3;
   --ink-soft: #a79d85;
+  --ink-faint: #92856f;
   --accent: #d4692a;
   --accent-soft: #8a4418;
   --line: #372e1e;
   --okra: #4d9a70;
+  --on-accent: #161006;
+  --error-bg: #572013;
+  --error-ink: #ffd9c8;
+  --error-border: #8a2f1c;
+  --bg-glow: #272012;
   --shadow: 0 18px 48px rgba(0, 0, 0, 0.55);
+}
+
+::selection {
+  background: var(--accent);
+  color: var(--on-accent);
 }
 
 * {
