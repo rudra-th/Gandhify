@@ -91,7 +91,7 @@ function clearError() {
 
 function setProgress(pct: number, label?: string) {
   const clamped = Math.max(0, Math.min(100, pct))
-  barFill.style.width = `${clamped}%`
+  barFill.style.transform = `scaleX(${(clamped / 100).toFixed(4)})`
   progressPct.textContent = `${clamped.toFixed(0)}%`
   if (label) progressLabel.textContent = label
 }

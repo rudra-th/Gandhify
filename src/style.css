@@ -511,10 +511,12 @@ input[type='range'] {
 
 #barFill {
   height: 100%;
-  width: 0%;
+  width: 100%;
+  transform: scaleX(0);
+  transform-origin: left;
   border-radius: 99px;
   background: linear-gradient(90deg, var(--accent), var(--okra));
-  transition: width 0.15s ease;
+  transition: transform 0.15s ease;
 }
 
 .morph {
